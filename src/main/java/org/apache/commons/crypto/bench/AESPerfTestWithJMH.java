@@ -118,6 +118,8 @@ public class AESPerfTestWithJMH {
 
   private CryptoCipher enc;
   private CryptoCipher dec;
+  private byte[] key = new byte[32];
+  private byte[] iv = new byte[16];
 
   /*
    * 1.checkout the input argument. es: buffer_size, sizeUnit, provider and mode.
@@ -165,11 +167,7 @@ public class AESPerfTestWithJMH {
   }
 
   private void initialize() throws Exception {
-    byte[] key;
-    byte[] iv;
-    //random generate the key and iv for cipher
-    key = new byte[32];
-    iv = new byte[16];
+
     rand.nextBytes(key);
     rand.nextBytes(iv);
 
@@ -191,7 +189,7 @@ public class AESPerfTestWithJMH {
     }
 
     //initialize the cipher for encrypt or decrypt
-       try {
+    try {
       enc = CryptoCipherFactory.getInstance(this.transformation, this.props);
       dec = CryptoCipherFactory.getInstance(this.transformation, this.props);
       AlgorithmParameterSpec paramSpec = new IvParameterSpec(iv);
@@ -227,6 +225,7 @@ public class AESPerfTestWithJMH {
       enc.doFinal(inputByteArray, 0, inputByteArray.length, tmpByteArray,0);
     }
 
+    enc.close();
     System.out.println("======");
     System.out.println("Testing " + enc.getTransformation().getName() + " " +
         enc.getTransformation()
@@ -247,6 +246,16 @@ public class AESPerfTestWithJMH {
 
   @GenerateMicroBenchmark
   public void encryptPerfTest() throws Exception {
+    //initialize the cipher for encrypt or decrypt
+    try {
+      enc = CryptoCipherFactory.getInstance(this.transformation, this.props);
+      AlgorithmParameterSpec paramSpec = new IvParameterSpec(iv);
+      enc.init(CryptoCipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"),
+          paramSpec);
+    } catch (Exception e) {
+      throw new RuntimeException("AES failed initialisation - " + e.toString(),
+          e);
+    }
     if (directBuffer) {
       /*
        * using bytebuffer need reset the input and output bytebuffer
@@ -257,13 +266,23 @@ public class AESPerfTestWithJMH {
       encByteBuffer.flip();
       encByteBuffer.limit(encByteBuffer.capacity());
     } else {
-
       testCipher(enc, inputByteArray, encByteArray);
     }
+    enc.close();
   }
 
   @GenerateMicroBenchmark
   public void decryptPerfTest() throws Exception {
+    //initialize the cipher for encrypt or decrypt
+    try {
+      dec = CryptoCipherFactory.getInstance(this.transformation, this.props);
+      AlgorithmParameterSpec paramSpec = new IvParameterSpec(iv);
+      dec.init(CryptoCipher.DECRYPT_MODE, new SecretKeySpec(key, "AES"),
+          paramSpec);
+    } catch (Exception e) {
+      throw new RuntimeException("AES failed initialisation - " + e.toString(),
+          e);
+    }
     if (directBuffer) {
       testCipher(dec, tmpByteBuffer, decByteBuffer);
       tmpByteBuffer.flip();
@@ -273,5 +292,6 @@ public class AESPerfTestWithJMH {
     } else {
       testCipher(dec, tmpByteArray, decByteArray);
     }
+    dec.close();
   }
 }
